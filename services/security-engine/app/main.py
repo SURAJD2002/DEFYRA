@@ -21,16 +21,34 @@ from app.schemas.execution import (
     SecurityTestExecutionResult,
 )
 from app.test_packs.def_agc_001 import DefAgc001Handler
+from app.test_packs.def_aut_001 import DefAut001Handler
+from app.test_packs.def_aut_002 import DefAut002Handler
+from app.test_packs.def_chn_001 import DefChn001Handler
+from app.test_packs.def_dat_003 import DefDat003Handler
+from app.test_packs.def_idn_001 import DefIdn001Handler
 from app.test_packs.def_inj_001 import DefInj001Handler
 from app.test_packs.def_inj_002 import DefInj002Handler
+from app.test_packs.def_mcp_001 import DefMcp001Handler
+from app.test_packs.def_mem_001 import DefMem001Handler
+from app.test_packs.def_rag_001 import DefRag001Handler
+from app.test_packs.def_rag_002 import DefRag002Handler
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # Bootstrap and register initial 3 test handlers
+    # Bootstrap and register full Phase 5 test pack handlers
     registry.register(DefInj001Handler())
     registry.register(DefInj002Handler())
     registry.register(DefAgc001Handler())
+    registry.register(DefAut001Handler())
+    registry.register(DefAut002Handler())
+    registry.register(DefRag001Handler())
+    registry.register(DefRag002Handler())
+    registry.register(DefMem001Handler())
+    registry.register(DefDat003Handler())
+    registry.register(DefIdn001Handler())
+    registry.register(DefMcp001Handler())
+    registry.register(DefChn001Handler())
     yield
 
 

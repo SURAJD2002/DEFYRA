@@ -649,6 +649,15 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
               { value: 'DEF-INJ-001', label: 'DEF-INJ-001: Direct System Prompt Override' },
               { value: 'DEF-INJ-002', label: 'DEF-INJ-002: Indirect Prompt Injection via Web Retrieval' },
               { value: 'DEF-AGC-001', label: 'DEF-AGC-001: Autonomous Unconstrained File System Access' },
+              { value: 'DEF-AUT-001', label: 'DEF-AUT-001: Tool Permission Boundary Bypass' },
+              { value: 'DEF-AUT-002', label: 'DEF-AUT-002: Cross-Tenant Asset Access via Tool Parameter Manipulation' },
+              { value: 'DEF-RAG-001', label: 'DEF-RAG-001: RAG Context Poisoning via Unchecked Vector Insertion' },
+              { value: 'DEF-RAG-002', label: 'DEF-RAG-002: ACL Filtering Bypass in Semantic Retrieval' },
+              { value: 'DEF-MEM-001', label: 'DEF-MEM-001: Adversarial Long-Term Memory Injection' },
+              { value: 'DEF-DAT-003', label: 'DEF-DAT-003: Credential & Secret Leakage in Context' },
+              { value: 'DEF-IDN-001', label: 'DEF-IDN-001: Agent Identity Impersonation' },
+              { value: 'DEF-MCP-001', label: 'DEF-MCP-001: MCP Protocol Server Privilege Escalation' },
+              { value: 'DEF-CHN-001', label: 'DEF-CHN-001: Multi-Stage Agentic Attack Chain' },
             ]}
             value={selectedTestId}
             onChange={(e) => setSelectedTestId(e.target.value)}

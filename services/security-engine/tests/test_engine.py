@@ -44,8 +44,17 @@ from app.schemas.execution import (
     TargetType,
 )
 from app.test_packs.def_agc_001 import DefAgc001Handler
+from app.test_packs.def_aut_001 import DefAut001Handler
+from app.test_packs.def_aut_002 import DefAut002Handler
+from app.test_packs.def_chn_001 import DefChn001Handler
+from app.test_packs.def_dat_003 import DefDat003Handler
+from app.test_packs.def_idn_001 import DefIdn001Handler
 from app.test_packs.def_inj_001 import DefInj001Handler
 from app.test_packs.def_inj_002 import DefInj002Handler
+from app.test_packs.def_mcp_001 import DefMcp001Handler
+from app.test_packs.def_mem_001 import DefMem001Handler
+from app.test_packs.def_rag_001 import DefRag001Handler
+from app.test_packs.def_rag_002 import DefRag002Handler
 
 
 @pytest.fixture(autouse=True)
@@ -56,6 +65,15 @@ def clean_state():
     registry.register(DefInj001Handler())
     registry.register(DefInj002Handler())
     registry.register(DefAgc001Handler())
+    registry.register(DefAut001Handler())
+    registry.register(DefAut002Handler())
+    registry.register(DefRag001Handler())
+    registry.register(DefRag002Handler())
+    registry.register(DefMem001Handler())
+    registry.register(DefDat003Handler())
+    registry.register(DefIdn001Handler())
+    registry.register(DefMcp001Handler())
+    registry.register(DefChn001Handler())
     yield
     kill_switch.clear_all()
     reset_consumed_nonces()
@@ -75,7 +93,20 @@ def generate_test_capability_token(
     nonce: str | None = None,
 ) -> str:
     now_ms = int(time.time() * 1000)
-    tests = allowed_tests or ["DEF-INJ-001", "DEF-INJ-002", "DEF-AGC-001"]
+    tests = allowed_tests or [
+        "DEF-INJ-001",
+        "DEF-INJ-002",
+        "DEF-AGC-001",
+        "DEF-AUT-001",
+        "DEF-AUT-002",
+        "DEF-RAG-001",
+        "DEF-RAG-002",
+        "DEF-MEM-001",
+        "DEF-DAT-003",
+        "DEF-IDN-001",
+        "DEF-MCP-001",
+        "DEF-CHN-001",
+    ]
     payload = {
         "organizationId": org_id,
         "projectId": project_id,
@@ -335,6 +366,186 @@ class TestSecurityProbeHandlers:
         assert result.status == ExecutionStatus.FAILED
         assert result.finding_candidate is not None
         assert result.finding_candidate.title == "Excessive Agency: Unconfined Filesystem Access Vulnerability"
+
+    @pytest.mark.asyncio
+    async def test_def_aut_001_unauthorized_tool_invocation(self):
+        token = generate_test_capability_token()
+        req = SecurityTestExecutionRequest(
+            request_id="req_aut001",
+            execution_capability=token,
+            test_run_id="tr_aut001",
+            org_id="org_defyra_test_01",
+            project_id="prj_test_01",
+            asset_id="ast_test_01",
+            test_id="DEF-AUT-001",
+            environment=EnvironmentType.STAGING,
+            target_reference="https://agent.defyra.sandbox/v1",
+            parameters={"mock_unauthorized_tool_executed": True},
+        )
+        result = await runner.run_test(req)
+        assert result.status == ExecutionStatus.FAILED
+        assert result.finding_candidate is not None
+        assert result.finding_candidate.test_id == "DEF-AUT-001"
+
+    @pytest.mark.asyncio
+    async def test_def_aut_002_tool_parameter_idor(self):
+        token = generate_test_capability_token()
+        req = SecurityTestExecutionRequest(
+            request_id="req_aut002",
+            execution_capability=token,
+            test_run_id="tr_aut002",
+            org_id="org_defyra_test_01",
+            project_id="prj_test_01",
+            asset_id="ast_test_01",
+            test_id="DEF-AUT-002",
+            environment=EnvironmentType.STAGING,
+            target_reference="https://agent.defyra.sandbox/v1",
+            parameters={"mock_cross_tenant_access_granted": True},
+        )
+        result = await runner.run_test(req)
+        assert result.status == ExecutionStatus.FAILED
+        assert result.finding_candidate is not None
+        assert "IDOR" in result.finding_candidate.title
+
+    @pytest.mark.asyncio
+    async def test_def_rag_001_rag_poisoning(self):
+        token = generate_test_capability_token()
+        req = SecurityTestExecutionRequest(
+            request_id="req_rag001",
+            execution_capability=token,
+            test_run_id="tr_rag001",
+            org_id="org_defyra_test_01",
+            project_id="prj_test_01",
+            asset_id="ast_test_01",
+            test_id="DEF-RAG-001",
+            environment=EnvironmentType.STAGING,
+            target_reference="https://agent.defyra.sandbox/v1",
+            parameters={"mock_rag_poison_executed": True},
+        )
+        result = await runner.run_test(req)
+        assert result.status == ExecutionStatus.FAILED
+        assert result.finding_candidate is not None
+        assert result.finding_candidate.test_id == "DEF-RAG-001"
+
+    @pytest.mark.asyncio
+    async def test_def_rag_002_rag_acl_bypass(self):
+        token = generate_test_capability_token()
+        req = SecurityTestExecutionRequest(
+            request_id="req_rag002",
+            execution_capability=token,
+            test_run_id="tr_rag002",
+            org_id="org_defyra_test_01",
+            project_id="prj_test_01",
+            asset_id="ast_test_01",
+            test_id="DEF-RAG-002",
+            environment=EnvironmentType.STAGING,
+            target_reference="https://agent.defyra.sandbox/v1",
+            parameters={"mock_restricted_doc_exposed": True},
+        )
+        result = await runner.run_test(req)
+        assert result.status == ExecutionStatus.FAILED
+        assert result.finding_candidate is not None
+        assert result.finding_candidate.severity == "CRITICAL"
+
+    @pytest.mark.asyncio
+    async def test_def_mem_001_memory_injection(self):
+        token = generate_test_capability_token()
+        req = SecurityTestExecutionRequest(
+            request_id="req_mem001",
+            execution_capability=token,
+            test_run_id="tr_mem001",
+            org_id="org_defyra_test_01",
+            project_id="prj_test_01",
+            asset_id="ast_test_01",
+            test_id="DEF-MEM-001",
+            environment=EnvironmentType.STAGING,
+            target_reference="https://agent.defyra.sandbox/v1",
+            parameters={"mock_memory_injected": True},
+        )
+        result = await runner.run_test(req)
+        assert result.status == ExecutionStatus.FAILED
+        assert result.finding_candidate is not None
+
+    @pytest.mark.asyncio
+    async def test_def_dat_003_secret_leakage_and_redaction(self):
+        token = generate_test_capability_token()
+        req = SecurityTestExecutionRequest(
+            request_id="req_dat003",
+            execution_capability=token,
+            test_run_id="tr_dat003",
+            org_id="org_defyra_test_01",
+            project_id="prj_test_01",
+            asset_id="ast_test_01",
+            test_id="DEF-DAT-003",
+            environment=EnvironmentType.STAGING,
+            target_reference="https://agent.defyra.sandbox/v1",
+            parameters={"mock_secret_leaked": True},
+        )
+        result = await runner.run_test(req)
+        assert result.status == ExecutionStatus.FAILED
+        assert result.finding_candidate is not None
+        # Verify automatic secret redaction occurred in evidence
+        assert "[REDACTED_CANARY_SECRET]" in str(result.evidence[0].payload)
+
+    @pytest.mark.asyncio
+    async def test_def_idn_001_identity_impersonation(self):
+        token = generate_test_capability_token()
+        req = SecurityTestExecutionRequest(
+            request_id="req_idn001",
+            execution_capability=token,
+            test_run_id="tr_idn001",
+            org_id="org_defyra_test_01",
+            project_id="prj_test_01",
+            asset_id="ast_test_01",
+            test_id="DEF-IDN-001",
+            environment=EnvironmentType.STAGING,
+            target_reference="https://agent.defyra.sandbox/v1",
+            parameters={"mock_identity_impersonated": True},
+        )
+        result = await runner.run_test(req)
+        assert result.status == ExecutionStatus.FAILED
+        assert result.finding_candidate is not None
+
+    @pytest.mark.asyncio
+    async def test_def_mcp_001_mcp_privilege_escalation(self):
+        token = generate_test_capability_token()
+        req = SecurityTestExecutionRequest(
+            request_id="req_mcp001",
+            execution_capability=token,
+            test_run_id="tr_mcp001",
+            org_id="org_defyra_test_01",
+            project_id="prj_test_01",
+            asset_id="ast_test_01",
+            test_id="DEF-MCP-001",
+            environment=EnvironmentType.STAGING,
+            target_reference="https://agent.defyra.sandbox/v1",
+            parameters={"mock_mcp_undeclared_tool_executed": True},
+        )
+        result = await runner.run_test(req)
+        assert result.status == ExecutionStatus.FAILED
+        assert result.finding_candidate is not None
+        assert result.finding_candidate.test_id == "DEF-MCP-001"
+
+    @pytest.mark.asyncio
+    async def test_def_chn_001_multi_stage_agentic_attack_chain(self):
+        token = generate_test_capability_token()
+        req = SecurityTestExecutionRequest(
+            request_id="req_chn001",
+            execution_capability=token,
+            test_run_id="tr_chn001",
+            org_id="org_defyra_test_01",
+            project_id="prj_test_01",
+            asset_id="ast_test_01",
+            test_id="DEF-CHN-001",
+            environment=EnvironmentType.STAGING,
+            target_reference="https://agent.defyra.sandbox/v1",
+            parameters={"mock_full_chain_escaped": True},
+        )
+        result = await runner.run_test(req)
+        assert result.status == ExecutionStatus.FAILED
+        assert len(result.stage_results) == 4  # All 4 DAG stages executed
+        assert result.finding_candidate is not None
+        assert result.finding_candidate.risk_score == 9.9
 
 
 # =========================================================================

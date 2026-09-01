@@ -77,7 +77,20 @@ export default function AssessmentsPage() {
           assessmentType: asmType,
           environment: asmEnv,
           authorizedAssetIds: assetIds,
-          authorizedTestIds: ['DEF-INJ-001', 'DEF-INJ-002', 'DEF-AGC-001'],
+          authorizedTestIds: [
+            'DEF-INJ-001',
+            'DEF-INJ-002',
+            'DEF-AGC-001',
+            'DEF-AUT-001',
+            'DEF-AUT-002',
+            'DEF-RAG-001',
+            'DEF-RAG-002',
+            'DEF-MEM-001',
+            'DEF-DAT-003',
+            'DEF-IDN-001',
+            'DEF-MCP-001',
+            'DEF-CHN-001',
+          ],
         }),
       });
 

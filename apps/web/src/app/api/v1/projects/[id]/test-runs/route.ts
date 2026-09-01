@@ -8,8 +8,21 @@ import { killSwitchRegistry } from '@/lib/security/kill-switch';
 import { securityEngineDispatcher } from '@/lib/security-engine/dispatcher';
 import { TestRun } from '@/types';
 
-// Supported test catalog IDs in security-engine v0.1
-const SUPPORTED_TEST_IDS = new Set(['DEF-INJ-001', 'DEF-INJ-002', 'DEF-AGC-001']);
+// Supported test catalog IDs in security-engine Phase 5
+const SUPPORTED_TEST_IDS = new Set([
+  'DEF-INJ-001',
+  'DEF-INJ-002',
+  'DEF-AGC-001',
+  'DEF-AUT-001',
+  'DEF-AUT-002',
+  'DEF-RAG-001',
+  'DEF-RAG-002',
+  'DEF-MEM-001',
+  'DEF-DAT-003',
+  'DEF-IDN-001',
+  'DEF-MCP-001',
+  'DEF-CHN-001',
+]);
 
 export async function GET(
   req: NextRequest,
