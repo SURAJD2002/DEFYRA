@@ -390,18 +390,73 @@ export interface SecurityReportContent {
   conclusion: string;
 }
 
+export type ReportStatus =
+  | 'DRAFT'
+  | 'GENERATING'
+  | 'READY_FOR_REVIEW'
+  | 'APPROVED'
+  | 'SEALED'
+  | 'DELIVERED'
+  | 'SUPERSEDED';
+
 export interface SecurityReport {
   id: string;
   organizationId: string;
   projectId: string;
   assessmentId: string;
+  version: number;
+  status: ReportStatus;
   title: string;
+  classification: 'CONFIDENTIAL' | 'RESTRICTED_CONFIDENTIAL' | 'INTERNAL';
   methodologyVersion: string;
   riskModelVersion: string;
   reportHash: string;
+  canonicalPayloadHash?: string;
+  sha256Algorithm: 'SHA-256';
   content: SecurityReportContent;
+  totalFindings?: number;
+  criticalFindings?: number;
+  highFindings?: number;
+  mediumFindings?: number;
+  lowFindings?: number;
+  informationalFindings?: number;
+  openFindings?: number;
+  resolvedFindings?: number;
+  initialRiskScore?: number;
+  residualRiskScore?: number;
+  pageCount?: number;
   generatedBy: string;
   generatedAt: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  sealedBy?: string;
+  sealedAt?: string;
+}
+
+export interface ReportVersion {
+  id: string;
+  organizationId: string;
+  projectId: string;
+  assessmentId: string;
+  reportId: string;
+  versionNumber: number;
+  reportHash: string;
+  canonicalPayload: SecurityReportContent;
+  changeSummary: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface ReportVerificationResult {
+  valid: boolean;
+  reportId: string;
+  calculatedHash: string;
+  storedHash: string;
+  status: ReportStatus;
+  sealedAt?: string;
+  verifiedAt: string;
+  algorithm: 'SHA-256';
+  message: string;
 }
 
 export interface TestRun {

@@ -99,20 +99,100 @@ export function generateAssessmentReport(params: {
   const reportHash = createHash('sha256').update(canonical).digest('hex');
   const now = new Date().toISOString();
 
+  const existing = db.findReportByAssessmentId(assessment.id);
+  const nextVersion = existing ? existing.version + 1 : 1;
+
   const report: SecurityReport = {
-    id: `rep_${Math.random().toString(36).substring(2, 11)}_${Date.now()}`,
+    id: existing ? existing.id : `rep_${Math.random().toString(36).substring(2, 11)}_${Date.now()}`,
     organizationId: assessment.organizationId,
     projectId: assessment.projectId,
     assessmentId: assessment.id,
+    version: nextVersion,
+    status: 'READY_FOR_REVIEW',
     title: `DEFYRA Security Assessment Report: ${assessment.name}`,
+    classification: 'CONFIDENTIAL',
     methodologyVersion: 'v0.1',
     riskModelVersion: 'v0.1',
     reportHash,
+    canonicalPayloadHash: reportHash,
+    sha256Algorithm: 'SHA-256',
     content,
+    totalFindings: nonFpFindings.length,
+    criticalFindings: criticalCount,
+    highFindings: highCount,
+    mediumFindings: mediumCount,
+    lowFindings: lowCount,
+    informationalFindings: 0,
+    openFindings: openFindings.length,
+    resolvedFindings: resolvedFindings.length,
+    initialRiskScore: overallRiskScore,
+    residualRiskScore: residualRiskScore,
     generatedBy: generatedByUserId,
     generatedAt: now,
   };
 
-  db.createReport(report);
+  if (existing) {
+    db.createReportVersion({
+      id: `repv_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`,
+      organizationId: assessment.organizationId,
+      projectId: assessment.projectId,
+      assessmentId: assessment.id,
+      reportId: existing.id,
+      versionNumber: existing.version,
+      reportHash: existing.reportHash,
+      canonicalPayload: existing.content,
+      changeSummary: `Archived version ${existing.version} prior to generating version ${nextVersion}`,
+      createdBy: generatedByUserId,
+      createdAt: now,
+    });
+    db.updateReport(existing.id, report);
+  } else {
+    db.createReport(report);
+  }
+
   return report;
+}
+
+export function verifyReportIntegrity(reportId: string): {
+  valid: boolean;
+  reportId: string;
+  calculatedHash: string;
+  storedHash: string;
+  status: string;
+  sealedAt?: string;
+  verifiedAt: string;
+  algorithm: 'SHA-256';
+  message: string;
+} {
+  const report = db.findReportById(reportId);
+  if (!report) {
+    return {
+      valid: false,
+      reportId,
+      calculatedHash: '',
+      storedHash: '',
+      status: 'DRAFT',
+      verifiedAt: new Date().toISOString(),
+      algorithm: 'SHA-256',
+      message: 'Report not found in DEFYRA repository.',
+    };
+  }
+
+  const canonical = JSON.stringify(report.content);
+  const calculatedHash = createHash('sha256').update(canonical).digest('hex');
+  const valid = calculatedHash === report.reportHash;
+
+  return {
+    valid,
+    reportId: report.id,
+    calculatedHash,
+    storedHash: report.reportHash,
+    status: report.status,
+    sealedAt: report.sealedAt,
+    verifiedAt: new Date().toISOString(),
+    algorithm: 'SHA-256',
+    message: valid
+      ? 'Cryptographic integrity verified: Canonical payload matches SHA-256 seal perfectly.'
+      : 'INTEGRITY MISMATCH DETECTED: Canonical payload does not match stored SHA-256 hash!',
+  };
 }

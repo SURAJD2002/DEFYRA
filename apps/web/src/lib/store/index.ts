@@ -18,6 +18,7 @@ import {
   RemediationRecord,
   RetestRecord,
   SecurityReport,
+  ReportVersion,
 } from '@/types';
 
 import { scryptSync } from 'crypto';
@@ -31,6 +32,13 @@ class DatabaseStore {
   public assets: Map<string, Asset> = new Map();
   public assetRelationships: Map<string, AssetRelationship> = new Map();
   public sessions: Map<string, Session> = new Map();
+  public assessments: Map<string, Assessment> = new Map();
+  public findings: Map<string, FindingRecord> = new Map();
+  public remediations: Map<string, RemediationRecord> = new Map();
+  public retests: Map<string, RetestRecord> = new Map();
+  public reports: Map<string, SecurityReport> = new Map();
+  public reportVersions: Map<string, ReportVersion> = new Map();
+  public testRuns: Map<string, TestRun> = new Map();
 
   constructor() {
     this.seedInitialData();
@@ -404,14 +412,6 @@ class DatabaseStore {
     return true;
   }
 
-  // --- Test Runs & Findings ---
-  public testRuns: Map<string, TestRun> = new Map();
-  public findings: Map<string, FindingRecord> = new Map();
-  public assessments: Map<string, Assessment> = new Map();
-  public remediations: Map<string, RemediationRecord> = new Map();
-  public retests: Map<string, RetestRecord> = new Map();
-  public reports: Map<string, SecurityReport> = new Map();
-
   // --- Assessments ---
   public listAssessmentsForProject(projectId: string): Assessment[] {
     const results: Assessment[] = [];
@@ -563,10 +563,42 @@ class DatabaseStore {
     return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
-  // --- Reports ---
+  // --- Reports & Report Versions ---
   public createReport(report: SecurityReport): SecurityReport {
     this.reports.set(report.id, report);
     return report;
+  }
+
+  public updateReport(id: string, updates: Partial<SecurityReport>): SecurityReport | undefined {
+    const existing = this.reports.get(id);
+    if (!existing) return undefined;
+
+    // Fail-Closed: Sealed reports cannot be mutated in-place without version advancement
+    const isVersionAdvancement = Boolean(updates.version && updates.version > existing.version);
+    if (existing.status === 'SEALED' && updates.status !== 'SEALED' && !isVersionAdvancement) {
+      throw new Error('Cannot mutate a SEALED security report. Create a new report version instead.');
+    }
+
+    const updated: SecurityReport = {
+      ...existing,
+      ...updates,
+    };
+    this.reports.set(id, updated);
+    return updated;
+  }
+
+  public sealReport(id: string, sealedByUserId: string): SecurityReport | undefined {
+    const existing = this.reports.get(id);
+    if (!existing) return undefined;
+    const now = new Date().toISOString();
+    const updated: SecurityReport = {
+      ...existing,
+      status: 'SEALED',
+      sealedBy: sealedByUserId,
+      sealedAt: now,
+    };
+    this.reports.set(id, updated);
+    return updated;
   }
 
   public findReportByAssessmentId(assessmentId: string): SecurityReport | undefined {
@@ -578,6 +610,31 @@ class DatabaseStore {
 
   public findReportById(id: string): SecurityReport | undefined {
     return this.reports.get(id);
+  }
+
+  public listReportsForProject(projectId: string): SecurityReport[] {
+    const list: SecurityReport[] = [];
+    for (const r of this.reports.values()) {
+      if (r.projectId === projectId) {
+        list.push(r);
+      }
+    }
+    return list.sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime());
+  }
+
+  public createReportVersion(version: ReportVersion): ReportVersion {
+    this.reportVersions.set(version.id, version);
+    return version;
+  }
+
+  public listReportVersions(reportId: string): ReportVersion[] {
+    const list: ReportVersion[] = [];
+    for (const v of this.reportVersions.values()) {
+      if (v.reportId === reportId) {
+        list.push(v);
+      }
+    }
+    return list.sort((a, b) => b.versionNumber - a.versionNumber);
   }
 
   // --- Test Runs ---
