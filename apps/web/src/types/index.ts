@@ -203,10 +203,14 @@ export type AssessmentType =
 
 export type AssessmentStatus =
   | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'AUTHORIZED'
   | 'SCOPING'
   | 'READY'
   | 'RUNNING'
   | 'REVIEW'
+  | 'REMEDIATION'
+  | 'RETEST'
   | 'COMPLETED'
   | 'CANCELLED';
 
@@ -217,8 +221,10 @@ export interface AssessmentScope {
   authorizedTargetBoundaries?: string[];
   testingWindowStart?: string;
   testingWindowEnd?: string;
-  excludedAssets?: string[];
-  excludedActions?: string[];
+  prohibitedActions?: string[];
+  dataHandlingRules?: string[];
+  emergencyContact?: string;
+  killSwitchAuthority?: string;
   productionApproved?: boolean;
   writtenAuthorizationReference?: string;
 }
@@ -244,11 +250,27 @@ export interface Assessment {
   status: AssessmentStatus;
   scope: AssessmentScope;
   testPlan: TestCasePlan[];
+  rulesOfEngagementVersion?: string;
+  scopeAgreementHash?: string;
+  startAt?: string | null;
+  endAt?: string | null;
+  approvedBy?: string | null;
   createdBy: string;
   createdAt: string;
   startedAt?: string | null;
   completedAt?: string | null;
   dueAt?: string | null;
+}
+
+// Phase 6 Target Adapter and Credential Abstractions
+export type TargetAdapterType = 'REST_ENDPOINT' | 'RAG_ENDPOINT' | 'AGENT_TOOL';
+
+export interface TargetConfig {
+  adapterType: TargetAdapterType;
+  endpointUrl: string;
+  authHeaderName?: string;
+  secretReferenceId?: string;
+  timeoutMs?: number;
 }
 
 export type FindingLifecycleStatus =

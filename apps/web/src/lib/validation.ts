@@ -211,7 +211,19 @@ export const updateAssessmentSchema = z.object({
   name: z.string().min(3).max(150).optional(),
   description: z.string().max(1000).optional(),
   status: z
-    .enum(['DRAFT', 'SCOPING', 'READY', 'RUNNING', 'REVIEW', 'COMPLETED', 'CANCELLED'])
+    .enum([
+      'DRAFT',
+      'PENDING_APPROVAL',
+      'AUTHORIZED',
+      'SCOPING',
+      'READY',
+      'RUNNING',
+      'REVIEW',
+      'REMEDIATION',
+      'RETEST',
+      'COMPLETED',
+      'CANCELLED',
+    ])
     .optional(),
   dueAt: z.string().optional(),
 });

@@ -7,6 +7,8 @@ import { validateExecutionTarget } from '@/lib/security/target-validator';
 import { evaluateRiskModelV01 } from '@/lib/security/risk-model';
 import { FindingRecord, TestRun } from '@/types';
 
+import { enforceAssessmentScope } from '@/lib/security/scope-enforcer';
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -36,6 +38,18 @@ export async function POST(
     for (const assetId of assessment.scope.authorizedAssetIds) {
       const asset = db.findAssetById(assetId);
       if (!asset) continue;
+
+      // 1. Machine-Enforceable Assessment Scope Check
+      const scopeCheck = enforceAssessmentScope(assessment, {
+        assetId: asset.id,
+        testId: testPlanItem.testId,
+        environment: assessment.environment,
+      });
+
+      if (!scopeCheck.allowed) {
+        testPlanItem.status = 'FAILED';
+        continue;
+      }
 
       const targetValidation = validateExecutionTarget({
         organizationId: organization.id,
