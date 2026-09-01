@@ -38,15 +38,9 @@ The system is designed as a **modular monorepo** to maximize maintainability, se
 ```
 defyra/
 ├── apps/
-│   ├── web/                    # Next.js 14/15 App Router Frontend & Secure API Gateway
-│   └── api/                    # (Future) Dedicated Internal API Service
+│   └── web/                    # Next.js 14 App Router Frontend & Secure API Gateway
 ├── services/
-│   └── security-engine/        # (Future/Mocked) Python Sandboxed Execution Engine
-├── packages/
-│   ├── ui/                     # Design system primitives & tokens
-│   ├── types/                  # Domain contracts (Assets, Tests, Findings, Evidence)
-│   ├── config/                 # Shared configs (ESLint, TS, Tailwind)
-│   └── validation/             # Zod validation schemas
+│   └── security-engine/        # Python 3.12+ Sandboxed Execution Engine (FastAPI, DAG Executor)
 ├── database/
 │   ├── migrations/             # Idempotent PostgreSQL DDL migrations
 │   └── seeds/                  # Seed catalogs (20 core AI security tests)
