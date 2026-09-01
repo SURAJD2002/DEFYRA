@@ -50,9 +50,9 @@ export class SecurityEngineDispatcher {
       ttlMs: 300000, // 5 minutes TTL
     });
 
-    // 2. Update status to DISPATCHED
+    // 2. Update status to RUNNING
     db.updateTestRun(testRun.id, {
-      status: 'DISPATCHED',
+      status: 'RUNNING',
       startedAt: new Date().toISOString(),
     });
 
@@ -145,11 +145,12 @@ export class SecurityEngineDispatcher {
     if (engineResult.finding_candidate) {
       const fc = engineResult.finding_candidate;
       findingCandidate = {
-        id: fc.finding_id || `find_${testRun.id}`,
+        id: `fnd_${Math.random().toString(36).substring(2, 11)}_${Date.now()}`,
         projectId: project.id,
         organizationId: project.organizationId,
         testRunId: testRun.id,
         affectedAssetId: asset.id,
+        testId: testRun.testId,
         title: fc.title,
         severity: fc.severity,
         riskScore: fc.risk_score || 0,
@@ -157,8 +158,11 @@ export class SecurityEngineDispatcher {
         description: fc.description,
         confidence: fc.confidence || 1.0,
         evidenceIds: fc.evidence_ids || [],
-        remediation: fc.remediation || '',
-        status: 'Open',
+        observationIds: [],
+        impact: fc.impact || 'Potential unauthorized system instruction manipulation or excessive tool access.',
+        attackScenario: fc.attack_scenario || 'Adversarial instruction content injected into model context.',
+        recommendation: fc.remediation || 'Implement strict input-instruction boundary sanitization.',
+        status: 'CANDIDATE',
         createdAt: completedAt,
         updatedAt: completedAt,
       };

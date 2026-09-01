@@ -192,23 +192,173 @@ export interface EvidenceRecord {
   retentionUntil?: string | null;
 }
 
+// Phase 4 Assessment Types
+export type AssessmentType =
+  | 'AI_SECURITY_VALIDATION'
+  | 'AI_RED_TEAM'
+  | 'AGENT_SECURITY'
+  | 'RAG_SECURITY'
+  | 'TOOL_API_SECURITY'
+  | 'MCP_SECURITY';
+
+export type AssessmentStatus =
+  | 'DRAFT'
+  | 'SCOPING'
+  | 'READY'
+  | 'RUNNING'
+  | 'REVIEW'
+  | 'COMPLETED'
+  | 'CANCELLED';
+
+export interface AssessmentScope {
+  authorizedAssetIds: string[];
+  authorizedTestIds: string[];
+  authorizedEnvironments: AssetEnvironment[];
+  authorizedTargetBoundaries?: string[];
+  testingWindowStart?: string;
+  testingWindowEnd?: string;
+  excludedAssets?: string[];
+  excludedActions?: string[];
+  productionApproved?: boolean;
+  writtenAuthorizationReference?: string;
+}
+
+export interface TestCasePlan {
+  testId: string;
+  enabled: boolean;
+  priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  order: number;
+  status: 'PENDING' | 'RUNNING' | 'PASSED' | 'FAILED' | 'SKIPPED';
+  expectedBehavior?: string;
+  lastRunId?: string;
+}
+
+export interface Assessment {
+  id: string;
+  organizationId: string;
+  projectId: string;
+  name: string;
+  description: string;
+  assessmentType: AssessmentType;
+  environment: AssetEnvironment;
+  status: AssessmentStatus;
+  scope: AssessmentScope;
+  testPlan: TestCasePlan[];
+  createdBy: string;
+  createdAt: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  dueAt?: string | null;
+}
+
+export type FindingLifecycleStatus =
+  | 'CANDIDATE'
+  | 'UNDER_REVIEW'
+  | 'CONFIRMED'
+  | 'FALSE_POSITIVE'
+  | 'ACCEPTED_RISK'
+  | 'REMEDIATION_REQUIRED'
+  | 'RETEST_PENDING'
+  | 'RESOLVED'
+  | 'REOPENED';
+
 export interface FindingRecord {
   id: string;
-  projectId: string;
   organizationId: string;
+  projectId: string;
+  assessmentId?: string | null;
   testRunId?: string | null;
   affectedAssetId?: string | null;
+  testId: string;
   title: string;
+  description: string;
   severity: Severity;
+  confidence: number;
   riskScore: number;
   riskModelVersion: string;
-  description: string;
-  confidence: number;
+  status: FindingLifecycleStatus;
+  impact: string;
+  attackScenario: string;
+  recommendation: string;
+  observationIds: string[];
   evidenceIds: string[];
-  remediation: string;
-  status: 'Open' | 'Acknowledged' | 'Remediating' | 'Ready for Retest' | 'Resolved' | 'Accepted Risk';
+  reviewNotes?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export type RemediationStatus =
+  | 'OPEN'
+  | 'IN_PROGRESS'
+  | 'READY_FOR_RETEST'
+  | 'RESOLVED'
+  | 'WONT_FIX'
+  | 'ACCEPTED_RISK';
+
+export interface RemediationRecord {
+  id: string;
+  organizationId: string;
+  projectId: string;
+  assessmentId: string;
+  findingId: string;
+  title: string;
+  description: string;
+  priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  recommendedAction: string;
+  owner: string;
+  status: RemediationStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type RetestResultType = 'PASS' | 'FAIL' | 'INCONCLUSIVE';
+
+export interface RetestRecord {
+  id: string;
+  organizationId: string;
+  projectId: string;
+  assessmentId: string;
+  findingId: string;
+  testRunId: string;
+  previousResult: string;
+  retestResult: RetestResultType;
+  originalEvidenceId?: string;
+  retestEvidenceId?: string;
+  behaviorChange: string;
+  performedBy: string;
+  createdAt: string;
+}
+
+export interface SecurityReportContent {
+  executiveSummary: string;
+  scopeSummary: string;
+  methodology: string;
+  assetsAssessed: Array<{ id: string; name: string; type: string }>;
+  testCoverage: Array<{ testId: string; status: string; result: string }>;
+  keyFindings: Array<{ id: string; title: string; severity: string; riskScore: number; status: string }>;
+  riskSummary: { criticalCount: number; highCount: number; mediumCount: number; lowCount: number; overallRiskScore: number };
+  detailedFindings: FindingRecord[];
+  evidenceReferences: string[];
+  remediationSummary: RemediationRecord[];
+  retestResults: RetestRecord[];
+  limitations: string[];
+  conclusion: string;
+}
+
+export interface SecurityReport {
+  id: string;
+  organizationId: string;
+  projectId: string;
+  assessmentId: string;
+  title: string;
+  methodologyVersion: string;
+  riskModelVersion: string;
+  reportHash: string;
+  content: SecurityReportContent;
+  generatedBy: string;
+  generatedAt: string;
 }
 
 export interface TestRun {
@@ -218,7 +368,7 @@ export interface TestRun {
   assetId: string;
   testId: string;
   environment: AssetEnvironment;
-  status: TestRunStatus;
+  status: 'QUEUED' | 'RUNNING' | 'PASSED' | 'FAILED' | 'BLOCKED' | 'STOPPED' | 'ERROR';
   requestedBy: string;
   requestId: string;
   createdAt: string;

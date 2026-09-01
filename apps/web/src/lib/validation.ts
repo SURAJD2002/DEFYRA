@@ -185,3 +185,70 @@ export const createTestRunSchema = z.object({
   assetId: z.string().min(1, 'Asset ID is required'),
   parameters: z.record(z.unknown()).optional(),
 });
+
+// --- Phase 4 Assessment Schemas ---
+export const createAssessmentSchema = z.object({
+  name: z.string().min(3, 'Assessment name is required').max(150),
+  description: z.string().max(1000).default(''),
+  assessmentType: z.enum([
+    'AI_SECURITY_VALIDATION',
+    'AI_RED_TEAM',
+    'AGENT_SECURITY',
+    'RAG_SECURITY',
+    'TOOL_API_SECURITY',
+    'MCP_SECURITY',
+  ]),
+  environment: z.enum(['development', 'staging', 'production']).default('staging'),
+  authorizedAssetIds: z.array(z.string()).min(1, 'At least one authorized asset is required in scope'),
+  authorizedTestIds: z.array(z.string()).min(1, 'At least one security test definition is required in scope'),
+  testingWindowStart: z.string().optional(),
+  testingWindowEnd: z.string().optional(),
+  productionApproved: z.boolean().default(false),
+  writtenAuthorizationReference: z.string().optional(),
+});
+
+export const updateAssessmentSchema = z.object({
+  name: z.string().min(3).max(150).optional(),
+  description: z.string().max(1000).optional(),
+  status: z
+    .enum(['DRAFT', 'SCOPING', 'READY', 'RUNNING', 'REVIEW', 'COMPLETED', 'CANCELLED'])
+    .optional(),
+  dueAt: z.string().optional(),
+});
+
+export const updateFindingReviewSchema = z.object({
+  status: z.enum([
+    'CANDIDATE',
+    'UNDER_REVIEW',
+    'CONFIRMED',
+    'FALSE_POSITIVE',
+    'ACCEPTED_RISK',
+    'REMEDIATION_REQUIRED',
+    'RETEST_PENDING',
+    'RESOLVED',
+    'REOPENED',
+  ]),
+  reviewNotes: z.string().max(2000).optional(),
+});
+
+export const createRemediationSchema = z.object({
+  title: z.string().min(3, 'Title is required').max(200),
+  description: z.string().max(2000).default(''),
+  priority: z.enum(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']).default('HIGH'),
+  recommendedAction: z.string().min(5, 'Recommended action is required').max(2000),
+  owner: z.string().max(100).default(''),
+});
+
+export const updateRemediationSchema = z.object({
+  title: z.string().min(3).max(200).optional(),
+  description: z.string().max(2000).optional(),
+  priority: z.enum(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']).optional(),
+  recommendedAction: z.string().min(5).max(2000).optional(),
+  owner: z.string().max(100).optional(),
+  status: z.enum(['OPEN', 'IN_PROGRESS', 'READY_FOR_RETEST', 'RESOLVED', 'WONT_FIX', 'ACCEPTED_RISK']).optional(),
+});
+
+export const createRetestSchema = z.object({
+  syntheticFixApplied: z.boolean().default(true),
+  notes: z.string().max(1000).optional(),
+});

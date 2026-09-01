@@ -39,12 +39,9 @@ const NAV_ITEMS: NavItem[] = [
   { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Projects', href: '/dashboard/projects', icon: FolderGit2 },
   { name: 'Assets', href: '/dashboard/assets', icon: Boxes },
-  { name: 'Tests', href: '/dashboard/tests', icon: PlayCircle, disabled: true, badge: 'Phase 3' },
-  { name: 'Test Runs', href: '/dashboard/test-runs', icon: Activity, disabled: true, badge: 'Phase 3' },
-  { name: 'Findings', href: '/dashboard/findings', icon: AlertOctagon, disabled: true, badge: 'Phase 3' },
-  { name: 'Evidence', href: '/dashboard/evidence', icon: FileCheck2, disabled: true, badge: 'Phase 3' },
-  { name: 'Retests', href: '/dashboard/retests', icon: RotateCw, disabled: true, badge: 'Phase 3' },
-  { name: 'Reports', href: '/dashboard/reports', icon: FileSpreadsheet, disabled: true, badge: 'Phase 3' },
+  { name: 'Assessments', href: '/dashboard/assessments', icon: Shield },
+  { name: 'Findings', href: '/dashboard/findings', icon: AlertOctagon },
+  { name: 'Reports', href: '/dashboard/reports', icon: FileSpreadsheet, disabled: true, badge: 'Phase 4' },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
 

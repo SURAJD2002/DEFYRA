@@ -14,6 +14,10 @@ import {
   RelationshipType,
   TestRun,
   FindingRecord,
+  Assessment,
+  RemediationRecord,
+  RetestRecord,
+  SecurityReport,
 } from '@/types';
 
 import { scryptSync } from 'crypto';
@@ -403,7 +407,180 @@ class DatabaseStore {
   // --- Test Runs & Findings ---
   public testRuns: Map<string, TestRun> = new Map();
   public findings: Map<string, FindingRecord> = new Map();
+  public assessments: Map<string, Assessment> = new Map();
+  public remediations: Map<string, RemediationRecord> = new Map();
+  public retests: Map<string, RetestRecord> = new Map();
+  public reports: Map<string, SecurityReport> = new Map();
 
+  // --- Assessments ---
+  public listAssessmentsForProject(projectId: string): Assessment[] {
+    const results: Assessment[] = [];
+    for (const a of this.assessments.values()) {
+      if (a.projectId === projectId) {
+        results.push(a);
+      }
+    }
+    return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  public listAssessmentsForOrg(organizationId: string): Assessment[] {
+    const results: Assessment[] = [];
+    for (const a of this.assessments.values()) {
+      if (a.organizationId === organizationId) {
+        results.push(a);
+      }
+    }
+    return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  public findAssessmentById(id: string): Assessment | undefined {
+    return this.assessments.get(id);
+  }
+
+  public createAssessment(assessment: Assessment): Assessment {
+    this.assessments.set(assessment.id, assessment);
+    return assessment;
+  }
+
+  public updateAssessment(id: string, updates: Partial<Assessment>): Assessment | undefined {
+    const existing = this.assessments.get(id);
+    if (!existing) return undefined;
+    const updated: Assessment = {
+      ...existing,
+      ...updates,
+    };
+    this.assessments.set(id, updated);
+    return updated;
+  }
+
+  // --- Findings ---
+  public createFinding(finding: FindingRecord): FindingRecord {
+    this.findings.set(finding.id, finding);
+    return finding;
+  }
+
+  public findFindingById(id: string): FindingRecord | undefined {
+    return this.findings.get(id);
+  }
+
+  public updateFinding(id: string, updates: Partial<FindingRecord>): FindingRecord | undefined {
+    const existing = this.findings.get(id);
+    if (!existing) return undefined;
+    const updated: FindingRecord = {
+      ...existing,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    this.findings.set(id, updated);
+    return updated;
+  }
+
+  public listFindingsForProject(projectId: string): FindingRecord[] {
+    const results: FindingRecord[] = [];
+    for (const f of this.findings.values()) {
+      if (f.projectId === projectId) {
+        results.push(f);
+      }
+    }
+    return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  public listFindingsForAssessment(assessmentId: string): FindingRecord[] {
+    const results: FindingRecord[] = [];
+    for (const f of this.findings.values()) {
+      if (f.assessmentId === assessmentId) {
+        results.push(f);
+      }
+    }
+    return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  public listFindingsForOrg(organizationId: string): FindingRecord[] {
+    const results: FindingRecord[] = [];
+    for (const f of this.findings.values()) {
+      if (f.organizationId === organizationId) {
+        results.push(f);
+      }
+    }
+    return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  // --- Remediations ---
+  public createRemediation(remediation: RemediationRecord): RemediationRecord {
+    this.remediations.set(remediation.id, remediation);
+    return remediation;
+  }
+
+  public findRemediationById(id: string): RemediationRecord | undefined {
+    return this.remediations.get(id);
+  }
+
+  public updateRemediation(id: string, updates: Partial<RemediationRecord>): RemediationRecord | undefined {
+    const existing = this.remediations.get(id);
+    if (!existing) return undefined;
+    const updated: RemediationRecord = {
+      ...existing,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    this.remediations.set(id, updated);
+    return updated;
+  }
+
+  public listRemediationsForFinding(findingId: string): RemediationRecord[] {
+    const results: RemediationRecord[] = [];
+    for (const r of this.remediations.values()) {
+      if (r.findingId === findingId) {
+        results.push(r);
+      }
+    }
+    return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  public listRemediationsForAssessment(assessmentId: string): RemediationRecord[] {
+    const results: RemediationRecord[] = [];
+    for (const r of this.remediations.values()) {
+      if (r.assessmentId === assessmentId) {
+        results.push(r);
+      }
+    }
+    return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  // --- Retests ---
+  public createRetest(retest: RetestRecord): RetestRecord {
+    this.retests.set(retest.id, retest);
+    return retest;
+  }
+
+  public listRetestsForFinding(findingId: string): RetestRecord[] {
+    const results: RetestRecord[] = [];
+    for (const rt of this.retests.values()) {
+      if (rt.findingId === findingId) {
+        results.push(rt);
+      }
+    }
+    return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  // --- Reports ---
+  public createReport(report: SecurityReport): SecurityReport {
+    this.reports.set(report.id, report);
+    return report;
+  }
+
+  public findReportByAssessmentId(assessmentId: string): SecurityReport | undefined {
+    for (const r of this.reports.values()) {
+      if (r.assessmentId === assessmentId) return r;
+    }
+    return undefined;
+  }
+
+  public findReportById(id: string): SecurityReport | undefined {
+    return this.reports.get(id);
+  }
+
+  // --- Test Runs ---
   public listTestRunsForProject(projectId: string): TestRun[] {
     const results: TestRun[] = [];
     for (const tr of this.testRuns.values()) {
@@ -432,21 +609,6 @@ class DatabaseStore {
     };
     this.testRuns.set(id, updated);
     return updated;
-  }
-
-  public createFinding(finding: FindingRecord): FindingRecord {
-    this.findings.set(finding.id, finding);
-    return finding;
-  }
-
-  public listFindingsForProject(projectId: string): FindingRecord[] {
-    const results: FindingRecord[] = [];
-    for (const f of this.findings.values()) {
-      if (f.projectId === projectId) {
-        results.push(f);
-      }
-    }
-    return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   // --- Relationships ---
