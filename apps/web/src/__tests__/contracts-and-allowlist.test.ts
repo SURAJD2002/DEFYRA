@@ -324,8 +324,6 @@ describe('Phase 3: Milestones A, B & C — Contracts, Capabilities & Target Allo
         assetId: assetProduction.id,
         testId: 'DEF-INJ-001',
         environment: 'production',
-        productionApproved: false, // Not approved!
-        userRole: 'ANALYST',
       });
 
       expect(result.valid).toBe(false);
@@ -334,20 +332,46 @@ describe('Phase 3: Milestones A, B & C — Contracts, Capabilities & Target Allo
       }
     });
 
-    it('allows execution against production asset when elevated approval is granted by SECURITY_LEAD', () => {
+    it('allows execution against production asset when valid two-person dual-approval is granted', () => {
       const result = validateExecutionTarget({
         organizationId: orgA.id,
         projectId: projectA.id,
         assetId: assetProduction.id,
         testId: 'DEF-INJ-001',
         environment: 'production',
-        productionApproved: true,
-        userRole: 'SECURITY_LEAD',
+        productionApproval: {
+          approvedByOwnerId: 'usr_owner_01',
+          approvedBySecurityLeadId: 'usr_security_lead_02',
+          approvalTimestamp: new Date().toISOString(),
+          writtenScopeAgreementHash: 'sha256_agreement_hash_example',
+        },
       });
 
       expect(result.valid).toBe(true);
       if (result.valid) {
         expect(result.resolvedTarget.isProduction).toBe(true);
+      }
+    });
+
+    it('rejects self-approval where Owner and Security Lead are the same user ID', () => {
+      const result = validateExecutionTarget({
+        organizationId: orgA.id,
+        projectId: projectA.id,
+        assetId: assetProduction.id,
+        testId: 'DEF-INJ-001',
+        environment: 'production',
+        productionApproval: {
+          approvedByOwnerId: 'usr_single_user_01',
+          approvedBySecurityLeadId: 'usr_single_user_01', // Same user attempting single-party bypass
+          approvalTimestamp: new Date().toISOString(),
+          writtenScopeAgreementHash: 'sha256_agreement_hash_example',
+        },
+      });
+
+      expect(result.valid).toBe(false);
+      if (!result.valid) {
+        expect(result.code).toBe('PRODUCTION_UNAUTHORIZED');
+        expect(result.error).toContain('two distinct authorizing individuals');
       }
     });
   });

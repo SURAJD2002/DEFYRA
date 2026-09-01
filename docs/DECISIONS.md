@@ -34,3 +34,19 @@
 - **Context**: Prevent IDOR, horizontal privilege escalation, and cross-tenant leakage.
 - **Decision**: PostgreSQL schema where all operational entities (assets, test runs, findings, evidence, reports) strictly cascade from an `organization_id` and `project_id`.
 - **Consequences**: Strict database foreign keys, tenant query scoping, and clear audit boundaries.
+
+## ADR-006: 4-Tier Fail-Closed Kill Switch Hierarchy
+- **Status**: Accepted
+- **Context**: AI security evaluation probes interact with autonomous agent and tool runtimes. Emergency abort must be instantaneous, reliable, and fail-closed.
+- **Decision**: Enforce a 4-tier hierarchy (`GLOBAL` -> `ORGANIZATION` -> `PROJECT` -> `TEST_RUN`) evaluated at 5 checkpoints (before dispatch, immediately before execution, between probe stages, before retry, and before network egress). If kill switch state cannot be determined or store is unreachable, the system fails closed and blocks execution.
+- **Consequences**: Zero chance of runaway test execution across any tenant boundary.
+
+## ADR-007: Multi-Layer Network Egress, DNS Rebinding Defense & Production Dual-Approval Gate
+- **Status**: Accepted
+- **Context**: DEFYRA must never become an arbitrary SSRF or attack proxy against internal infrastructure or cloud metadata. Production assets must not be tested without elevated two-person approval.
+- **Decision**:
+  1. **URL Canonicalization & Strict Prohibited Subnets**: Detects and rejects numeric IPv4 representations (decimal, octal, hex), IPv4-mapped IPv6 (`::ffff:x.x.x.x`), IPv6 loopback/link-local/unique-local, private RFC 1918 ranges, CGNAT, cloud metadata (`169.254.169.254`), and userinfo in URLs.
+  2. **DNS Rebinding Defense**: Every resolved A/AAAA record is checked prior to socket connection.
+  3. **Step-by-Step Redirect Validation**: Re-evaluates target canonicalization and DNS resolution on every 3xx redirect hop (max 3).
+  4. **Genuine Two-Person Production Dual-Approval**: Production testing requires distinct `approvedByOwnerId` + `approvedBySecurityLeadId` with written scope agreement hash.
+- **Consequences**: Immune to SSRF bypasses, time-of-check-to-time-of-use DNS rebinding, and single-party production testing accidents.

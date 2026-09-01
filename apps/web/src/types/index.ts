@@ -189,3 +189,5 @@ export interface AuditEventPayload {
 export * from '../lib/contracts/test-contract';
 export * from '../lib/auth/capability-token';
 export * from '../lib/security/target-validator';
+export * from '../lib/security/kill-switch';
+export * from '../lib/security/network-egress';
