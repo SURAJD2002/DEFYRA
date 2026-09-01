@@ -6,6 +6,7 @@ import { logAuditEvent } from '@/lib/audit-logger';
 import { validateExecutionTarget } from '@/lib/security/target-validator';
 import { killSwitchRegistry } from '@/lib/security/kill-switch';
 import { securityEngineDispatcher } from '@/lib/security-engine/dispatcher';
+import { enforceAssessmentScope } from '@/lib/security/scope-enforcer';
 import { TestRun } from '@/types';
 
 // Supported test catalog IDs in security-engine Phase 5
@@ -100,6 +101,44 @@ export async function POST(
         },
         { status: 403 }
       );
+    }
+
+    // 3b. Validate Assessment Scope if test run is attached to an Assessment
+    if (assessmentId) {
+      const assessment = db.findAssessmentById(assessmentId);
+      if (!assessment || assessment.projectId !== project.id || assessment.organizationId !== organization.id) {
+        return NextResponse.json(
+          {
+            success: false,
+            data: null,
+            error: {
+              code: 'ASSESSMENT_NOT_FOUND',
+              message: 'Assessment does not exist within the authorized project scope.',
+            },
+          },
+          { status: 404 }
+        );
+      }
+
+      const scopeCheck = enforceAssessmentScope(assessment, {
+        assetId: asset.id,
+        testId,
+        environment: project.environment,
+      });
+
+      if (!scopeCheck.allowed) {
+        return NextResponse.json(
+          {
+            success: false,
+            data: null,
+            error: {
+              code: scopeCheck.code || 'SCOPE_VIOLATION',
+              message: scopeCheck.reason || 'Execution blocked by assessment scope policy.',
+            },
+          },
+          { status: 403 }
+        );
+      }
     }
 
     // 4. Resolve Target URL strictly from Asset metadata/configuration

@@ -26,6 +26,36 @@ export async function POST(
 
   const { project, organization, user, membership } = projectCheck.ctx;
 
+  // 1. Initial Assessment Scope & Status Gate
+  const validExecutableStatuses = new Set(['AUTHORIZED', 'READY', 'RUNNING', 'RETEST']);
+  if (!validExecutableStatuses.has(assessment.status)) {
+    return NextResponse.json(
+      {
+        success: false,
+        data: null,
+        error: {
+          code: 'ASSESSMENT_STATUS_INVALID',
+          message: `Assessment '${assessment.id}' is in status '${assessment.status}'. Execution requires an AUTHORIZED or READY assessment.`,
+        },
+      },
+      { status: 403 }
+    );
+  }
+
+  if (assessment.paymentStatus && !['PAYMENT_CONFIRMED', 'ASSESSMENT_AUTHORIZED', 'WAIVED_FOR_PILOT'].includes(assessment.paymentStatus)) {
+    return NextResponse.json(
+      {
+        success: false,
+        data: null,
+        error: {
+          code: 'PAYMENT_NOT_CONFIRMED',
+          message: `Assessment execution blocked: Commercial payment status is '${assessment.paymentStatus}'.`,
+        },
+      },
+      { status: 403 }
+    );
+  }
+
   // Execute all enabled tests in the assessment plan against authorized assets
   db.updateAssessment(assessment.id, { status: 'RUNNING', startedAt: new Date().toISOString() });
 
