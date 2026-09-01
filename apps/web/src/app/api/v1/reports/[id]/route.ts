@@ -76,6 +76,7 @@ export async function PATCH(
     }
 
     const updated = db.updateReport(report.id, {
+      title: rawBody.title,
       status: status || report.status,
       approvedBy: user.id,
       approvedAt: new Date().toISOString(),

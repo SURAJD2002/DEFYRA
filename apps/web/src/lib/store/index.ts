@@ -575,7 +575,7 @@ class DatabaseStore {
 
     // Fail-Closed: Sealed reports cannot be mutated in-place without version advancement
     const isVersionAdvancement = Boolean(updates.version && updates.version > existing.version);
-    if (existing.status === 'SEALED' && updates.status !== 'SEALED' && !isVersionAdvancement) {
+    if (existing.status === 'SEALED' && !isVersionAdvancement) {
       throw new Error('Cannot mutate a SEALED security report. Create a new report version instead.');
     }
 
