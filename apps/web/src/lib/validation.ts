@@ -12,6 +12,7 @@ function containsSecrets(val: string): boolean {
   return SECRET_PATTERNS.some((pattern) => pattern.test(val));
 }
 
+// --- Contact Form ---
 export const contactSubmissionSchema = z.object({
   name: z
     .string()
@@ -62,3 +63,118 @@ export const contactSubmissionSchema = z.object({
 });
 
 export type ContactSubmissionInput = z.infer<typeof contactSubmissionSchema>;
+
+// --- Authentication Schemas ---
+export const signupSchema = z.object({
+  email: z.string().email('Please enter a valid email address').toLowerCase().trim(),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password is too long')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+  fullName: z.string().min(2, 'Full name is required').max(100, 'Full name is too long'),
+  organizationName: z.string().min(2, 'Organization name is required').max(100),
+});
+
+export type SignupInput = z.infer<typeof signupSchema>;
+
+export const loginSchema = z.object({
+  email: z.string().email('Invalid email address').toLowerCase().trim(),
+  password: z.string().min(1, 'Password is required'),
+});
+
+export type LoginInput = z.infer<typeof loginSchema>;
+
+// --- Organization Schemas ---
+export const createOrgSchema = z.object({
+  name: z.string().min(2, 'Organization name must be at least 2 characters').max(100),
+  slug: z
+    .string()
+    .min(2, 'Slug must be at least 2 characters')
+    .max(50)
+    .regex(/^[a-z0-9-]+$/, 'Slug can only contain lowercase letters, numbers, and dashes'),
+});
+
+export const updateOrgSchema = z.object({
+  name: z.string().min(2).max(100),
+});
+
+export const addMemberSchema = z.object({
+  email: z.string().email('Invalid email address').toLowerCase().trim(),
+  role: z.enum(['OWNER', 'ADMIN', 'SECURITY_LEAD', 'ANALYST', 'VIEWER']),
+});
+
+// --- Project Schemas ---
+export const createProjectSchema = z.object({
+  organizationId: z.string().min(1, 'Organization ID is required'),
+  name: z.string().min(2, 'Project name is required').max(120),
+  description: z.string().max(500).default(''),
+  environment: z.enum(['development', 'staging', 'production']).default('staging'),
+});
+
+export const updateProjectSchema = z.object({
+  name: z.string().min(2).max(120).optional(),
+  description: z.string().max(500).optional(),
+  environment: z.enum(['development', 'staging', 'production']).optional(),
+});
+
+// --- Asset Schemas ---
+export const createAssetSchema = z.object({
+  projectId: z.string().min(1, 'Project ID is required'),
+  type: z.enum([
+    'APPLICATION',
+    'AGENT',
+    'MODEL',
+    'RAG',
+    'MEMORY',
+    'TOOL',
+    'API',
+    'IDENTITY',
+    'PERMISSION',
+    'DATA_SOURCE',
+    'MCP_SERVER',
+  ]),
+  name: z.string().min(2, 'Asset name is required').max(150),
+  description: z.string().max(1000).default(''),
+  environment: z.enum(['development', 'staging', 'production']).default('staging'),
+  metadata: z.record(z.unknown()).default({}),
+});
+
+export const updateAssetSchema = z.object({
+  name: z.string().min(2).max(150).optional(),
+  type: z
+    .enum([
+      'APPLICATION',
+      'AGENT',
+      'MODEL',
+      'RAG',
+      'MEMORY',
+      'TOOL',
+      'API',
+      'IDENTITY',
+      'PERMISSION',
+      'DATA_SOURCE',
+      'MCP_SERVER',
+    ])
+    .optional(),
+  description: z.string().max(1000).optional(),
+  environment: z.enum(['development', 'staging', 'production']).optional(),
+  metadata: z.record(z.unknown()).optional(),
+  status: z.enum(['active', 'archived']).optional(),
+});
+
+export const createRelationshipSchema = z.object({
+  sourceAssetId: z.string().min(1),
+  targetAssetId: z.string().min(1),
+  relationshipType: z.enum([
+    'USES',
+    'INVOKES',
+    'CALLS',
+    'AUTHENTICATED_BY',
+    'HAS_PERMISSION',
+    'RETRIEVES_FROM',
+    'WRITES_TO',
+  ]),
+});
