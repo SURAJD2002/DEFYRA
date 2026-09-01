@@ -157,6 +157,7 @@ export interface SecurityTestDefinition {
   remediationGuidance: string;
   retestCriteria: string;
   active: boolean;
+  executionStatus?: 'SUPPORTED_NOW' | 'PLANNED';
 }
 
 export type TestRunStatus =
@@ -192,7 +193,7 @@ export interface EvidenceRecord {
   retentionUntil?: string | null;
 }
 
-// Phase 4 Assessment Types
+// Phase 4 & Phase 8 Assessment Types
 export type AssessmentType =
   | 'AI_SECURITY_VALIDATION'
   | 'AI_RED_TEAM'
@@ -213,6 +214,13 @@ export type AssessmentStatus =
   | 'RETEST'
   | 'COMPLETED'
   | 'CANCELLED';
+
+export type CommercialPaymentStatus =
+  | 'QUOTE_SENT'
+  | 'PAYMENT_PENDING'
+  | 'PAYMENT_CONFIRMED'
+  | 'ASSESSMENT_AUTHORIZED'
+  | 'WAIVED_FOR_PILOT';
 
 export interface AssessmentScope {
   authorizedAssetIds: string[];
@@ -252,6 +260,8 @@ export interface Assessment {
   testPlan: TestCasePlan[];
   rulesOfEngagementVersion?: string;
   scopeAgreementHash?: string;
+  paymentStatus?: CommercialPaymentStatus;
+  paymentReference?: string | null;
   startAt?: string | null;
   endAt?: string | null;
   approvedBy?: string | null;

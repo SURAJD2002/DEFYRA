@@ -41,6 +41,22 @@ export function enforceAssessmentScope(
     };
   }
 
+  // 2. Commercial Payment Readiness Gate
+  if (assessment.paymentStatus) {
+    const validCommercialStatuses = new Set([
+      'PAYMENT_CONFIRMED',
+      'ASSESSMENT_AUTHORIZED',
+      'WAIVED_FOR_PILOT',
+    ]);
+    if (!validCommercialStatuses.has(assessment.paymentStatus)) {
+      return {
+        allowed: false,
+        code: 'PAYMENT_NOT_CONFIRMED',
+        reason: `Assessment execution blocked: Commercial payment status is '${assessment.paymentStatus}'. Requires PAYMENT_CONFIRMED or WAIVED_FOR_PILOT.`,
+      };
+    }
+  }
+
   // 2. Asset Scope Verification
   if (!assessment.scope.authorizedAssetIds.includes(request.assetId)) {
     return {

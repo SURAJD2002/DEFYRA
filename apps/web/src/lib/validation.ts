@@ -206,6 +206,10 @@ export const createAssessmentSchema = z.object({
   testingWindowEnd: z.string().optional(),
   productionApproved: z.boolean().default(false),
   writtenAuthorizationReference: z.string().optional(),
+  paymentStatus: z
+    .enum(['QUOTE_SENT', 'PAYMENT_PENDING', 'PAYMENT_CONFIRMED', 'ASSESSMENT_AUTHORIZED', 'WAIVED_FOR_PILOT'])
+    .optional(),
+  paymentReference: z.string().optional(),
 });
 
 export const updateAssessmentSchema = z.object({
@@ -226,6 +230,10 @@ export const updateAssessmentSchema = z.object({
       'CANCELLED',
     ])
     .optional(),
+  paymentStatus: z
+    .enum(['QUOTE_SENT', 'PAYMENT_PENDING', 'PAYMENT_CONFIRMED', 'ASSESSMENT_AUTHORIZED', 'WAIVED_FOR_PILOT'])
+    .optional(),
+  paymentReference: z.string().optional(),
   dueAt: z.string().optional(),
 });
 

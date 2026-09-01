@@ -91,6 +91,8 @@ export async function POST(
       assessmentType: data.assessmentType,
       environment: data.environment,
       status: 'READY',
+      paymentStatus: data.paymentStatus || 'PAYMENT_CONFIRMED',
+      paymentReference: data.paymentReference || null,
       scope: {
         authorizedAssetIds: data.authorizedAssetIds,
         authorizedTestIds: data.authorizedTestIds,
