@@ -5,6 +5,7 @@ import { db } from '@/lib/store';
 import { logAuditEvent } from '@/lib/audit-logger';
 import { securityEngineDispatcher } from '@/lib/security-engine/dispatcher';
 import { validateExecutionTarget } from '@/lib/security/target-validator';
+import { enforceAssessmentScope } from '@/lib/security/scope-enforcer';
 import { RetestRecord, TestRun } from '@/types';
 
 export async function POST(
@@ -19,10 +20,56 @@ export async function POST(
     );
   }
 
+  // 1. Review status validation: Finding cannot be retested while in unreviewed CANDIDATE state
+  if (finding.status === 'CANDIDATE') {
+    return NextResponse.json(
+      {
+        success: false,
+        data: null,
+        error: {
+          code: 'REVIEW_REQUIRED',
+          message: 'Finding is currently in CANDIDATE status. Human security review is required before a retest can be executed.',
+        },
+      },
+      { status: 403 }
+    );
+  }
+
   const projectCheck = await requireProjectAccess(req, finding.projectId, 'test:execute');
   if (projectCheck.errorResponse || !projectCheck.ctx) return projectCheck.errorResponse!;
 
   const { project, organization, user, membership } = projectCheck.ctx;
+
+  // 2. Assessment Scope validation if finding is linked to an assessment
+  if (finding.assessmentId) {
+    const assessment = db.findAssessmentById(finding.assessmentId);
+    if (!assessment) {
+      return NextResponse.json(
+        { success: false, data: null, error: { code: 'ASSESSMENT_NOT_FOUND', message: 'Associated assessment not found.' } },
+        { status: 404 }
+      );
+    }
+
+    const scopeCheck = enforceAssessmentScope(assessment, {
+      assetId: finding.affectedAssetId || '',
+      testId: finding.testId,
+      environment: project.environment,
+    });
+
+    if (!scopeCheck.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          error: {
+            code: scopeCheck.code || 'SCOPE_VIOLATION',
+            message: scopeCheck.reason || 'Retest blocked by assessment scope policy.',
+          },
+        },
+        { status: 403 }
+      );
+    }
+  }
 
   try {
     const rawBody = await req.json();
