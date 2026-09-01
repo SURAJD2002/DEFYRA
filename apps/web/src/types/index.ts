@@ -184,3 +184,8 @@ export interface AuditEventPayload {
   ipAddress?: string;
   createdAt?: string;
 }
+
+// Export Security Contracts & Execution Types
+export * from '../lib/contracts/test-contract';
+export * from '../lib/auth/capability-token';
+export * from '../lib/security/target-validator';
