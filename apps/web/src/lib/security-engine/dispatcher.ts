@@ -148,6 +148,7 @@ export class SecurityEngineDispatcher {
         id: `fnd_${Math.random().toString(36).substring(2, 11)}_${Date.now()}`,
         projectId: project.id,
         organizationId: project.organizationId,
+        assessmentId: testRun.assessmentId || null,
         testRunId: testRun.id,
         affectedAssetId: asset.id,
         testId: testRun.testId,

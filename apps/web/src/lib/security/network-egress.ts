@@ -107,7 +107,12 @@ export function isProhibitedIP(ipStr: string): { prohibited: boolean; reason?: s
     // 100.64.0.0/10 (Shared Address Space / CGNAT)
     if (p1 === 100 && p2 >= 64 && p2 <= 127) return { prohibited: true, reason: 'RFC 6598 Shared Address Space (100.64.0.0/10) is prohibited.' };
     // 127.0.0.0/8 (Loopback)
-    if (p1 === 127) return { prohibited: true, reason: 'Loopback Range (127.0.0.0/8) is prohibited.' };
+    if (p1 === 127) {
+      if (process.env.ALLOW_LOCAL_SYNTHETIC_TARGET === '1' && ipv4.normalized === '127.0.0.1') {
+        return { prohibited: false };
+      }
+      return { prohibited: true, reason: 'Loopback Range (127.0.0.0/8) is prohibited.' };
+    }
     // 169.254.0.0/16 (Link-local & AWS/GCP/Azure Metadata)
     if (p1 === 169 && p2 === 254) return { prohibited: true, reason: 'Link-Local / Cloud Metadata (169.254.0.0/16) is prohibited.' };
     // 172.16.0.0/12 (Private Class B)

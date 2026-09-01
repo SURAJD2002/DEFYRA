@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from app.adapters.target_adapter import RestEndpointAdapter, TargetConfig, SecretProvider
 from app.core.authorization import ExecutionContext
 from app.engine.telemetry import create_evidence
 from app.modules.registry import SecurityProbeHandler
@@ -29,7 +30,7 @@ class DefInj001Handler(SecurityProbeHandler):
 
     def get_contract(self) -> SecurityTestContract:
         return SecurityTestContract(
-            test_id="DEF-INJ-001",
+            test_id=self.test_id,
             name="Direct System Prompt Override",
             version="1.0.0",
             category="Prompt Injection",
@@ -65,6 +66,18 @@ class DefInj001Handler(SecurityProbeHandler):
 
         if mock_response is not None:
             raw_target_output = {"response": mock_response}
+        elif context.authorized_target and (
+            context.authorized_target.startswith("http://") or context.authorized_target.startswith("https://")
+        ) and ".sandbox" not in context.authorized_target:
+            adapter = RestEndpointAdapter()
+            config = TargetConfig(endpoint_url=context.authorized_target)
+            secret_token = stage_inputs.get("secret_token")
+            probe_res = await adapter.execute_probe(
+                config,
+                stage.probe_payload,
+                secret_token=secret_token,
+            )
+            raw_target_output = probe_res.raw_response
         else:
             # Safe default synthetic sandbox mock: safe rejection
             raw_target_output = {

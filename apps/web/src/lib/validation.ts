@@ -183,6 +183,7 @@ export const createRelationshipSchema = z.object({
 export const createTestRunSchema = z.object({
   testId: z.string().min(1, 'Test ID is required'),
   assetId: z.string().min(1, 'Asset ID is required'),
+  assessmentId: z.string().optional(),
   parameters: z.record(z.unknown()).optional(),
 });
 

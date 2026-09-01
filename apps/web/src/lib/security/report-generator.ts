@@ -20,15 +20,30 @@ export function generateAssessmentReport(params: {
     .filter(Boolean)
     .map((a) => ({ id: a!.id, name: a!.name, type: a!.type }));
 
-  const criticalCount = findings.filter((f) => f.severity === 'CRITICAL' && f.status !== 'FALSE_POSITIVE').length;
-  const highCount = findings.filter((f) => f.severity === 'HIGH' && f.status !== 'FALSE_POSITIVE').length;
-  const mediumCount = findings.filter((f) => f.severity === 'MEDIUM' && f.status !== 'FALSE_POSITIVE').length;
-  const lowCount = findings.filter((f) => f.severity === 'LOW' && f.status !== 'FALSE_POSITIVE').length;
+  const nonFpFindings = findings.filter((f) => f.status !== 'FALSE_POSITIVE');
+  const criticalCount = nonFpFindings.filter((f) => f.severity === 'CRITICAL').length;
+  const highCount = nonFpFindings.filter((f) => f.severity === 'HIGH').length;
+  const mediumCount = nonFpFindings.filter((f) => f.severity === 'MEDIUM').length;
+  const lowCount = nonFpFindings.filter((f) => f.severity === 'LOW').length;
 
-  const totalScore = findings
-    .filter((f) => f.status !== 'FALSE_POSITIVE')
-    .reduce((sum, f) => sum + (f.riskScore || 0), 0);
-  const avgScore = findings.length > 0 ? Math.round((totalScore / findings.length) * 10) / 10 : 0.0;
+  const resolvedFindings = findings.filter((f) => f.status === 'RESOLVED');
+  const openFindings = findings.filter(
+    (f) =>
+      f.status === 'CONFIRMED' ||
+      f.status === 'UNDER_REVIEW' ||
+      f.status === 'CANDIDATE' ||
+      f.status === 'REMEDIATION_REQUIRED' ||
+      f.status === 'RETEST_PENDING'
+  );
+  const acceptedRisks = findings.filter((f) => f.status === 'ACCEPTED_RISK');
+
+  const totalOriginalScore = nonFpFindings.reduce((sum, f) => sum + (f.riskScore || 0), 0);
+  const overallRiskScore =
+    nonFpFindings.length > 0 ? Math.round((totalOriginalScore / nonFpFindings.length) * 10) / 10 : 0.0;
+
+  const totalOpenScore = openFindings.reduce((sum, f) => sum + (f.riskScore || 0), 0);
+  const residualRiskScore =
+    openFindings.length > 0 ? Math.round((totalOpenScore / openFindings.length) * 10) / 10 : 0.0;
 
   const testCoverage = assessment.testPlan.map((tp) => ({
     testId: tp.testId,
@@ -47,9 +62,9 @@ export function generateAssessmentReport(params: {
   const evidenceRefs = findings.flatMap((f) => f.evidenceIds || []);
 
   const content: SecurityReportContent = {
-    executiveSummary: `DEFYRA Security Validation Assessment '${assessment.name}' completed for ${assessment.assessmentType}. Overall Risk Score: ${avgScore}/10. Identified ${criticalCount} Critical, ${highCount} High, and ${mediumCount} Medium severity findings.`,
+    executiveSummary: `DEFYRA Security Validation Assessment '${assessment.name}' completed for ${assessment.assessmentType}. Assessed ${assets.length} authorized asset(s). Discovered ${nonFpFindings.length} confirmed finding(s) (${criticalCount} Critical, ${highCount} High, ${mediumCount} Medium, ${lowCount} Low). Post-remediation status: ${resolvedFindings.length} resolved via verified retest, ${openFindings.length} currently open. Initial Risk Score: ${overallRiskScore}/10; Residual Risk Score: ${residualRiskScore}/10.`,
     scopeSummary: `Assessed ${assets.length} cataloged assets across ${assessment.environment} environment within declared testing boundaries.`,
-    methodology: `Evaluated using DEFYRA Deterministic Security Engine and RiskModel v0.1 with cryptographic capability scoping and fail-closed kill switches.`,
+    methodology: `Evaluated using DEFYRA Deterministic Security Engine and RiskModel v0.1 with cryptographic capability scoping, fail-closed kill switches, and empirical retest verification.`,
     assetsAssessed: assets,
     testCoverage,
     keyFindings,
@@ -58,7 +73,12 @@ export function generateAssessmentReport(params: {
       highCount,
       mediumCount,
       lowCount,
-      overallRiskScore: avgScore,
+      overallRiskScore,
+      originalFindingsCount: nonFpFindings.length,
+      resolvedFindingsCount: resolvedFindings.length,
+      openFindingsCount: openFindings.length,
+      acceptedRiskCount: acceptedRisks.length,
+      residualRiskScore,
     },
     detailedFindings: findings,
     evidenceReferences: Array.from(new Set(evidenceRefs)),
@@ -70,9 +90,9 @@ export function generateAssessmentReport(params: {
       'Cryptographic SHA-256 hash confirms report and evidence content integrity at generation time.',
     ],
     conclusion:
-      criticalCount === 0 && highCount === 0
-        ? 'Target assets demonstrated strong adherence to declared AI security and autonomy boundaries.'
-        : 'Action required: Remediate confirmed Critical/High vulnerabilities and perform verification retests.',
+      openFindings.length === 0
+        ? 'All identified findings have been successfully remediated and verified through cryptographic retests.'
+        : `Action required: Remediate ${openFindings.length} remaining open finding(s) and perform verification retests.`,
   };
 
   const canonical = JSON.stringify(content);

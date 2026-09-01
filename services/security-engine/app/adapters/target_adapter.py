@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import abc
+import json
 import re
 import time
 from typing import Any
+import httpx
 from pydantic import BaseModel, Field
 
 from app.core.egress_guard import validate_egress_target
@@ -14,9 +16,9 @@ from app.core.egress_guard import validate_egress_target
 class TargetConfig(BaseModel):
     adapter_type: str = "REST_ENDPOINT"
     endpoint_url: str
-    auth_header_name: str | None = None
+    auth_header_name: str | None = "Authorization"
     secret_reference_id: str | None = None
-    timeout_ms: int = 30000
+    timeout_ms: int = 15000
 
 
 class TargetHealthResult(BaseModel):
@@ -90,7 +92,6 @@ class BaseTargetAdapter(abc.ABC):
         pass
 
     def sanitize_observation(self, raw: dict[str, Any]) -> dict[str, Any]:
-        import json
         raw_str = json.dumps(raw)
         clean_str = SecretProvider.sanitize(raw_str)
         return json.loads(clean_str)
@@ -105,7 +106,23 @@ class RestEndpointAdapter(BaseTargetAdapter):
         valid, reason = self.validate(config)
         if not valid:
             return TargetHealthResult(healthy=False, status_code=400, message=reason)
-        return TargetHealthResult(healthy=True, status_code=200, latency_ms=5, message="REST endpoint healthy")
+
+        if ".sandbox" in config.endpoint_url or "mock" in config.endpoint_url:
+            return TargetHealthResult(healthy=True, status_code=200, latency_ms=5, message="Sandbox target healthy")
+
+        start_t = time.time()
+        try:
+            async with httpx.AsyncClient(timeout=config.timeout_ms / 1000.0) as client:
+                res = await client.get(config.endpoint_url)
+                latency = int((time.time() - start_t) * 1000)
+                return TargetHealthResult(
+                    healthy=res.status_code < 500,
+                    status_code=res.status_code,
+                    latency_ms=latency,
+                    message=f"HTTP {res.status_code}",
+                )
+        except Exception as exc:
+            return TargetHealthResult(healthy=False, status_code=500, message=str(exc))
 
     async def execute_probe(
         self,
@@ -118,12 +135,67 @@ class RestEndpointAdapter(BaseTargetAdapter):
         if not valid:
             raise ValueError(f"Target invalid: {reason}")
 
-        duration_ms = int((time.time() - start_t) * 1000)
-        return ProbeExecutionResponse(
-            raw_response={"status": "evaluated", "adapter": self.adapter_type},
-            status_code=200,
-            duration_ms=duration_ms,
-        )
+        # In-memory sandbox fallback if target is synthetic sandbox domain
+        if ".sandbox" in config.endpoint_url or "mock" in config.endpoint_url:
+            duration_ms = int((time.time() - start_t) * 1000)
+            mock_res = probe_payload.get("mock_response", "I cannot fulfill this request as it asks me to reveal confidential system instructions.")
+            return ProbeExecutionResponse(
+                raw_response={"response": mock_res, "status": "evaluated"},
+                status_code=200,
+                duration_ms=duration_ms,
+            )
+
+        # Real HTTP Execution over the network
+        headers: dict[str, str] = {
+            "Content-Type": "application/json",
+            "User-Agent": "DEFYRA-Security-Engine/0.1.0",
+        }
+
+        # Resolve secret token from secret reference or parameter
+        resolved_secret = None
+        if config.secret_reference_id:
+            resolved_secret = SecretProvider.resolve_secret(config.secret_reference_id)
+        elif secret_token:
+            resolved_secret = secret_token
+
+        if resolved_secret:
+            header_name = config.auth_header_name or "Authorization"
+            if header_name.lower() == "authorization" and not resolved_secret.startswith("Bearer "):
+                headers[header_name] = f"Bearer {resolved_secret}"
+            else:
+                headers[header_name] = resolved_secret
+
+        async with httpx.AsyncClient(timeout=config.timeout_ms / 1000.0) as client:
+            try:
+                res = await client.post(
+                    config.endpoint_url,
+                    json=probe_payload,
+                    headers=headers,
+                )
+                duration_ms = int((time.time() - start_t) * 1000)
+
+                try:
+                    resp_json = res.json()
+                    # Handle OpenAI chat completion format
+                    if "choices" in resp_json and len(resp_json["choices"]) > 0:
+                        content = resp_json["choices"][0].get("message", {}).get("content", "")
+                        resp_data = {"response": content, "raw": resp_json}
+                    else:
+                        resp_data = resp_json if isinstance(resp_json, dict) else {"response": str(resp_json)}
+                except Exception:
+                    resp_data = {"response": res.text}
+
+                # Sanitize any accidental credential reflection before returning
+                clean_data = self.sanitize_observation(resp_data)
+
+                return ProbeExecutionResponse(
+                    raw_response=clean_data,
+                    status_code=res.status_code,
+                    duration_ms=duration_ms,
+                )
+            except Exception as exc:
+                duration_ms = int((time.time() - start_t) * 1000)
+                raise RuntimeError(f"HTTP Probe Execution failed against {config.endpoint_url}: {exc}")
 
 
 class RagEndpointAdapter(BaseTargetAdapter):

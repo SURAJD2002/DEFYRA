@@ -360,7 +360,18 @@ export interface SecurityReportContent {
   assetsAssessed: Array<{ id: string; name: string; type: string }>;
   testCoverage: Array<{ testId: string; status: string; result: string }>;
   keyFindings: Array<{ id: string; title: string; severity: string; riskScore: number; status: string }>;
-  riskSummary: { criticalCount: number; highCount: number; mediumCount: number; lowCount: number; overallRiskScore: number };
+  riskSummary: {
+    criticalCount: number;
+    highCount: number;
+    mediumCount: number;
+    lowCount: number;
+    overallRiskScore: number;
+    originalFindingsCount?: number;
+    resolvedFindingsCount?: number;
+    openFindingsCount?: number;
+    acceptedRiskCount?: number;
+    residualRiskScore?: number;
+  };
   detailedFindings: FindingRecord[];
   evidenceReferences: string[];
   remediationSummary: RemediationRecord[];
@@ -387,6 +398,7 @@ export interface TestRun {
   id: string;
   organizationId: string;
   projectId: string;
+  assessmentId?: string | null;
   assetId: string;
   testId: string;
   environment: AssetEnvironment;

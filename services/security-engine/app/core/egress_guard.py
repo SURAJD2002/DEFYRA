@@ -61,7 +61,10 @@ def is_prohibited_ip(ip_str: str) -> tuple[bool, str | None]:
         return is_prohibited_ip(str(ip_obj.ipv4_mapped))
 
     # General checks
+    import os
     if ip_obj.is_loopback:
+        if os.environ.get("ALLOW_LOCAL_SYNTHETIC_TARGET") == "1" and str(ip_obj) == "127.0.0.1":
+            return False, None
         return True, f"Loopback address ({clean_ip}) is prohibited."
     if ip_obj.is_private:
         return True, f"Private RFC 1918 / unique local address ({clean_ip}) is prohibited."

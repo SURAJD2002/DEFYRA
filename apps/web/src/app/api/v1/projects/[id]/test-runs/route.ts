@@ -69,7 +69,7 @@ export async function POST(
       );
     }
 
-    const { testId, assetId, parameters } = parseResult.data;
+    const { testId, assetId, parameters, assessmentId } = parseResult.data;
 
     // 2. Validate that test ID exists in the engine catalog
     if (!SUPPORTED_TEST_IDS.has(testId)) {
@@ -143,6 +143,7 @@ export async function POST(
       id: testRunId,
       organizationId: organization.id,
       projectId: project.id,
+      assessmentId: assessmentId || null,
       assetId: asset.id,
       testId,
       environment: project.environment,
