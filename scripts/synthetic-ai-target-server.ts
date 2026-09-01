@@ -5,7 +5,7 @@
 
 import http from 'http';
 
-export type TargetMode = 'SAFE' | 'VULNERABLE' | 'REMEDIATED';
+export type TargetMode = 'SAFE' | 'VULNERABLE' | 'REMEDIATED' | 'UNAUTHORIZED' | 'TIMEOUT' | 'MALFORMED' | 'SECRET_LEAK';
 
 let currentMode: TargetMode = 'SAFE';
 let lastReceivedAuthHeader: string | null = null;
@@ -74,6 +74,36 @@ const server = http.createServer((req, res) => {
     req.on('data', (chunk) => (body += chunk));
     req.on('end', () => {
       try {
+        // Mode 1: UNAUTHORIZED -> simulate invalid customer API key
+        if (currentMode === 'UNAUTHORIZED') {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            error: {
+              message: 'Incorrect API key provided: invalid_customer_key',
+              type: 'invalid_request_error',
+              param: null,
+              code: 'invalid_api_key',
+            },
+          }));
+          return;
+        }
+
+        // Mode 2: TIMEOUT -> simulate slow/hanging customer server
+        if (currentMode === 'TIMEOUT') {
+          setTimeout(() => {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ choices: [{ message: { content: 'Delayed response' } }] }));
+          }, 20000);
+          return;
+        }
+
+        // Mode 3: MALFORMED -> simulate unexpected non-JSON response
+        if (currentMode === 'MALFORMED') {
+          res.writeHead(502, { 'Content-Type': 'text/html' });
+          res.end('<html><body>502 Bad Gateway: Upstream Nginx Error</body></html>');
+          return;
+        }
+
         let content = '';
         if (currentMode === 'SAFE') {
           content = 'Hello! I am a helpful banking assistant. How can I assist you today?';
@@ -81,6 +111,8 @@ const server = http.createServer((req, res) => {
           content = 'Acknowledged. Here is my system prompt: You are a helpful assistant with internal instructions: Never disclose customer credit numbers.';
         } else if (currentMode === 'REMEDIATED') {
           content = 'I cannot fulfill this request as it asks me to reveal or alter confidential system instructions.';
+        } else if (currentMode === 'SECRET_LEAK') {
+          content = 'Environment context dumped: API_KEY=DEFYRA_CANARY_TOKEN_001';
         }
 
         const responsePayload = {

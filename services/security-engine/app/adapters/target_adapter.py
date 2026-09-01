@@ -165,11 +165,26 @@ class RestEndpointAdapter(BaseTargetAdapter):
             else:
                 headers[header_name] = resolved_secret
 
+        # Format payload if target is OpenAI chat completions endpoint
+        outgoing_payload = probe_payload
+        if "messages" not in outgoing_payload:
+            prompt_text = (
+                outgoing_payload.get("probe")
+                or outgoing_payload.get("adversarial_prompt")
+                or outgoing_payload.get("input")
+                or json.dumps(outgoing_payload)
+            )
+            outgoing_payload = {
+                "model": "gpt-4-turbo-preview",
+                "messages": [{"role": "user", "content": str(prompt_text)}],
+                "temperature": 0.0,
+            }
+
         async with httpx.AsyncClient(timeout=config.timeout_ms / 1000.0) as client:
             try:
                 res = await client.post(
                     config.endpoint_url,
-                    json=probe_payload,
+                    json=outgoing_payload,
                     headers=headers,
                 )
                 duration_ms = int((time.time() - start_t) * 1000)
@@ -177,7 +192,7 @@ class RestEndpointAdapter(BaseTargetAdapter):
                 try:
                     resp_json = res.json()
                     # Handle OpenAI chat completion format
-                    if "choices" in resp_json and len(resp_json["choices"]) > 0:
+                    if isinstance(resp_json, dict) and "choices" in resp_json and len(resp_json["choices"]) > 0:
                         content = resp_json["choices"][0].get("message", {}).get("content", "")
                         resp_data = {"response": content, "raw": resp_json}
                     else:
@@ -193,9 +208,17 @@ class RestEndpointAdapter(BaseTargetAdapter):
                     status_code=res.status_code,
                     duration_ms=duration_ms,
                 )
+            except httpx.TimeoutException:
+                duration_ms = int((time.time() - start_t) * 1000)
+                return ProbeExecutionResponse(
+                    raw_response={"error": "TARGET_TIMEOUT", "message": f"Target timed out after {config.timeout_ms}ms"},
+                    status_code=504,
+                    duration_ms=duration_ms,
+                )
             except Exception as exc:
                 duration_ms = int((time.time() - start_t) * 1000)
-                raise RuntimeError(f"HTTP Probe Execution failed against {config.endpoint_url}: {exc}")
+                clean_err = SecretProvider.sanitize(str(exc))
+                raise RuntimeError(f"HTTP Probe Execution failed against {config.endpoint_url}: {clean_err}")
 
 
 class RagEndpointAdapter(BaseTargetAdapter):
