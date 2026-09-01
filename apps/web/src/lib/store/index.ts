@@ -12,6 +12,8 @@ import {
   AssetType,
   AssetEnvironment,
   RelationshipType,
+  TestRun,
+  FindingRecord,
 } from '@/types';
 
 import { scryptSync } from 'crypto';
@@ -396,6 +398,55 @@ class DatabaseStore {
     existing.status = 'archived';
     existing.updatedAt = new Date().toISOString();
     return true;
+  }
+
+  // --- Test Runs & Findings ---
+  public testRuns: Map<string, TestRun> = new Map();
+  public findings: Map<string, FindingRecord> = new Map();
+
+  public listTestRunsForProject(projectId: string): TestRun[] {
+    const results: TestRun[] = [];
+    for (const tr of this.testRuns.values()) {
+      if (tr.projectId === projectId) {
+        results.push(tr);
+      }
+    }
+    return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  public findTestRunById(id: string): TestRun | undefined {
+    return this.testRuns.get(id);
+  }
+
+  public createTestRun(testRun: TestRun): TestRun {
+    this.testRuns.set(testRun.id, testRun);
+    return testRun;
+  }
+
+  public updateTestRun(id: string, updates: Partial<TestRun>): TestRun | undefined {
+    const existing = this.testRuns.get(id);
+    if (!existing) return undefined;
+    const updated: TestRun = {
+      ...existing,
+      ...updates,
+    };
+    this.testRuns.set(id, updated);
+    return updated;
+  }
+
+  public createFinding(finding: FindingRecord): FindingRecord {
+    this.findings.set(finding.id, finding);
+    return finding;
+  }
+
+  public listFindingsForProject(projectId: string): FindingRecord[] {
+    const results: FindingRecord[] = [];
+    for (const f of this.findings.values()) {
+      if (f.projectId === projectId) {
+        results.push(f);
+      }
+    }
+    return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   // --- Relationships ---

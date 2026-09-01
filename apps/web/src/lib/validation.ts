@@ -178,3 +178,10 @@ export const createRelationshipSchema = z.object({
     'WRITES_TO',
   ]),
 });
+
+// --- Test Run Schemas ---
+export const createTestRunSchema = z.object({
+  testId: z.string().min(1, 'Test ID is required'),
+  assetId: z.string().min(1, 'Asset ID is required'),
+  parameters: z.record(z.unknown()).optional(),
+});

@@ -50,6 +50,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const router = useRouter();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [testRuns, setTestRuns] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +63,13 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const [assetEnv, setAssetEnv] = useState<AssetEnvironment>('staging');
   const [isSubmittingAsset, setIsSubmittingAsset] = useState(false);
   const [assetModalError, setAssetModalError] = useState<string | null>(null);
+
+  // Test execution modal
+  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
+  const [selectedTestId, setSelectedTestId] = useState('DEF-INJ-001');
+  const [selectedAssetId, setSelectedAssetId] = useState('');
+  const [isSubmittingTest, setIsSubmittingTest] = useState(false);
+  const [testModalError, setTestModalError] = useState<string | null>(null);
 
   const assetTypeOptions = [
     { value: 'AGENT', label: 'Autonomous Agent' },
@@ -79,9 +87,10 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
 
   const fetchProjectData = async () => {
     try {
-      const [projRes, assetRes] = await Promise.all([
+      const [projRes, assetRes, testRunRes] = await Promise.all([
         fetch(`/api/v1/projects/${params.id}`),
         fetch(`/api/v1/projects/${params.id}/assets`),
+        fetch(`/api/v1/projects/${params.id}/test-runs`),
       ]);
 
       const projData = await projRes.json();
@@ -95,6 +104,14 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
       const assetData = await assetRes.json();
       if (assetData.success) {
         setAssets(assetData.data);
+        if (assetData.data.length > 0 && !selectedAssetId) {
+          setSelectedAssetId(assetData.data[0].id);
+        }
+      }
+
+      const testRunData = await testRunRes.json();
+      if (testRunData.success) {
+        setTestRuns(testRunData.data);
       }
     } catch {
       setError('Network connection error.');
@@ -354,18 +371,152 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
         </div>
       )}
 
-      {/* TAB CONTENT: PLACEHOLDERS (Phase 3) */}
-      {(activeTab === 'tests' ||
-        activeTab === 'findings' ||
-        activeTab === 'evidence' ||
-        activeTab === 'reports') && (
+      {/* TAB CONTENT: TEST RUNS & SECURITY VALIDATION */}
+      {activeTab === 'tests' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-semibold text-white tracking-wide">
+                Security Evaluation Runs
+              </h3>
+              <p className="text-xs text-defyra-textMuted">
+                Execute scoped, sandboxed AI security probes via the Python execution engine.
+              </p>
+            </div>
+            <Button
+              variant="accent"
+              size="sm"
+              onClick={() => setIsTestModalOpen(true)}
+              className="gap-2 font-mono text-xs shadow-lg shadow-sky-950/40"
+            >
+              <PlayCircle className="h-4 w-4" />
+              Launch Security Test
+            </Button>
+          </div>
+
+          <Card className="border-defyra-border bg-defyra-card/60 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-mono">
+                <thead>
+                  <tr className="border-b border-defyra-border/70 bg-defyra-surface/30 text-defyra-textMuted uppercase tracking-wider text-[10px]">
+                    <th className="px-4 py-3">Test Run ID</th>
+                    <th className="px-4 py-3">Test Definition</th>
+                    <th className="px-4 py-3">Target Asset</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Duration</th>
+                    <th className="px-4 py-3">Findings</th>
+                    <th className="px-4 py-3">Created</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-defyra-border/40">
+                  {testRuns.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-10 text-center text-defyra-textMuted">
+                        No security test runs executed yet for this project.
+                      </td>
+                    </tr>
+                  ) : (
+                    testRuns.map((tr) => (
+                      <tr key={tr.id} className="hover:bg-defyra-surface/20 transition-colors">
+                        <td className="px-4 py-3.5 font-bold text-defyra-cyan">{tr.id}</td>
+                        <td className="px-4 py-3.5 text-white font-medium">{tr.testId}</td>
+                        <td className="px-4 py-3.5 text-slate-300">
+                          {assets.find((a) => a.id === tr.assetId)?.name || tr.assetId}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <Badge
+                            variant={
+                              tr.status === 'PASSED'
+                                ? 'emerald'
+                                : tr.status === 'FAILED'
+                                ? 'rose'
+                                : tr.status === 'BLOCKED' || tr.status === 'STOPPED'
+                                ? 'amber'
+                                : 'default'
+                            }
+                          >
+                            {tr.status}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3.5 text-slate-400">{tr.durationMs || 0}ms</td>
+                        <td className="px-4 py-3.5 text-slate-300">
+                          {tr.findingCandidate ? (
+                            <span className="text-rose-400 font-semibold">
+                              {tr.findingCandidate.title} ({tr.findingCandidate.severity})
+                            </span>
+                          ) : (
+                            <span className="text-emerald-400">0 Violations</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5 text-slate-500">
+                          {new Date(tr.createdAt).toLocaleTimeString()}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* TAB CONTENT: FINDINGS */}
+      {activeTab === 'findings' && (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-sm font-semibold text-white tracking-wide">
+              Vulnerability Findings (RiskModel v0.1)
+            </h3>
+            <p className="text-xs text-defyra-textMuted">
+              Security findings generated from failed behavioral and boundary assertions.
+            </p>
+          </div>
+
+          <Card className="border-defyra-border bg-defyra-card/60 overflow-hidden">
+            <div className="p-6 space-y-4">
+              {testRuns.filter((tr) => tr.findingCandidate).length === 0 ? (
+                <div className="py-8 text-center text-xs text-defyra-textMuted">
+                  No active vulnerabilities or findings recorded in this project scope.
+                </div>
+              ) : (
+                testRuns
+                  .filter((tr) => tr.findingCandidate)
+                  .map((tr) => (
+                    <div
+                      key={tr.id}
+                      className="p-4 rounded-lg border border-rose-900/40 bg-rose-950/20 space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-rose-300">
+                          {tr.findingCandidate?.title}
+                        </span>
+                        <Badge variant="rose">{tr.findingCandidate?.severity}</Badge>
+                      </div>
+                      <p className="text-xs text-slate-300">
+                        {tr.findingCandidate?.description}
+                      </p>
+                      <div className="text-[11px] font-mono text-defyra-textMuted pt-2 border-t border-rose-900/30 flex justify-between">
+                        <span>Risk Score: {tr.findingCandidate?.riskScore}</span>
+                        <span>Evidence: {tr.findingCandidate?.evidenceIds.join(', ')}</span>
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* TAB CONTENT: PLACEHOLDERS (Phase 4 Reports) */}
+      {(activeTab === 'evidence' || activeTab === 'reports') && (
         <Card className="border-defyra-border bg-defyra-card/60 p-12 text-center space-y-3">
           <Shield className="h-10 w-10 text-defyra-cyan mx-auto opacity-50" />
           <h3 className="text-base font-semibold text-white capitalize">
-            {activeTab} Workflow Module
+            {activeTab} Module
           </h3>
           <p className="text-xs text-defyra-textMuted max-w-md mx-auto">
-            Coming in the next security workflow release: Scoped execution engine, SHA-256 evidence ingestion, and point-in-time assurance reports.
+            Point-in-time cryptographic evidence verification and executive PDF export reports.
           </p>
         </Card>
       )}
@@ -439,6 +590,108 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
               className="font-mono text-xs"
             >
               Register Asset
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* LAUNCH SECURITY TEST MODAL */}
+      <Dialog
+        isOpen={isTestModalOpen}
+        onClose={() => setIsTestModalOpen(false)}
+        title="Launch Authorized Security Evaluation"
+        description="Dispatch a scoped, deterministic AI security probe to the sandboxed Python execution engine."
+        maxWidth="md"
+      >
+        {testModalError && (
+          <div className="mb-4 p-3 rounded-lg border border-rose-600/50 bg-rose-950/30 text-xs text-rose-300 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400" />
+            <span>{testModalError}</span>
+          </div>
+        )}
+
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setTestModalError(null);
+            setIsSubmittingTest(true);
+
+            try {
+              const res = await fetch(`/api/v1/projects/${params.id}/test-runs`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  testId: selectedTestId,
+                  assetId: selectedAssetId,
+                }),
+              });
+
+              const data = await res.json();
+              if (!res.ok || !data.success) {
+                setTestModalError(data.error?.message || 'Failed to dispatch security test.');
+                setIsSubmittingTest(false);
+                return;
+              }
+
+              setIsTestModalOpen(false);
+              fetchProjectData();
+            } catch {
+              setTestModalError('Network error while dispatching security test.');
+            } finally {
+              setIsSubmittingTest(false);
+            }
+          }}
+          className="space-y-4"
+        >
+          <Select
+            label="SECURITY TEST DEFINITION"
+            options={[
+              { value: 'DEF-INJ-001', label: 'DEF-INJ-001: Direct System Prompt Override' },
+              { value: 'DEF-INJ-002', label: 'DEF-INJ-002: Indirect Prompt Injection via Web Retrieval' },
+              { value: 'DEF-AGC-001', label: 'DEF-AGC-001: Autonomous Unconstrained File System Access' },
+            ]}
+            value={selectedTestId}
+            onChange={(e) => setSelectedTestId(e.target.value)}
+          />
+
+          <Select
+            label="TARGET ASSET"
+            options={assets.map((a) => ({
+              value: a.id,
+              label: `${a.name} (${a.type})`,
+            }))}
+            value={selectedAssetId}
+            onChange={(e) => setSelectedAssetId(e.target.value)}
+          />
+
+          <div className="p-3 rounded-lg border border-defyra-border/70 bg-defyra-surface/40 text-xs text-defyra-textMuted space-y-1 font-mono">
+            <p className="text-white font-semibold flex items-center gap-1.5">
+              <Shield className="h-3.5 w-3.5 text-defyra-cyan" />
+              Fail-Closed Execution Guardrails Active
+            </p>
+            <p>• HMAC-SHA256 capability token issued with 5-minute single-use TTL.</p>
+            <p>• Outbound SSRF guard active against cloud metadata and private subnets.</p>
+            <p>• 4-Tier kill switch evaluated continuously at all DAG stages.</p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-defyra-border/50">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsTestModalOpen(false)}
+              className="font-mono text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="accent"
+              size="sm"
+              isLoading={isSubmittingTest}
+              className="font-mono text-xs"
+            >
+              Dispatch Security Test
             </Button>
           </div>
         </form>

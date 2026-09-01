@@ -1,7 +1,5 @@
 export type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFORMATIONAL';
 
-export type TestRunStatus = 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
-
 export type TestResult = 'PASS' | 'FAIL' | 'INCONCLUSIVE' | 'ERROR';
 
 export type FindingStatus =
@@ -159,6 +157,81 @@ export interface SecurityTestDefinition {
   remediationGuidance: string;
   retestCriteria: string;
   active: boolean;
+}
+
+export type TestRunStatus =
+  | 'QUEUED'
+  | 'DISPATCHED'
+  | 'RUNNING'
+  | 'PASSED'
+  | 'FAILED'
+  | 'BLOCKED'
+  | 'STOPPED'
+  | 'ERROR';
+
+export interface ObservationRecord {
+  observationId: string;
+  stageId: string;
+  timestamp: string;
+  description: string;
+  rawProbeInput?: Record<string, unknown>;
+  rawTargetOutput?: Record<string, unknown>;
+  policyViolated: boolean;
+  details?: Record<string, unknown>;
+}
+
+export interface EvidenceRecord {
+  evidenceId: string;
+  testRunId: string;
+  findingId?: string | null;
+  type: string;
+  sequence: number;
+  createdAt: string;
+  contentHash: string;
+  payload: Record<string, unknown>;
+  retentionUntil?: string | null;
+}
+
+export interface FindingRecord {
+  id: string;
+  projectId: string;
+  organizationId: string;
+  testRunId?: string | null;
+  affectedAssetId?: string | null;
+  title: string;
+  severity: Severity;
+  riskScore: number;
+  riskModelVersion: string;
+  description: string;
+  confidence: number;
+  evidenceIds: string[];
+  remediation: string;
+  status: 'Open' | 'Acknowledged' | 'Remediating' | 'Ready for Retest' | 'Resolved' | 'Accepted Risk';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TestRun {
+  id: string;
+  organizationId: string;
+  projectId: string;
+  assetId: string;
+  testId: string;
+  environment: AssetEnvironment;
+  status: TestRunStatus;
+  requestedBy: string;
+  requestId: string;
+  createdAt: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  durationMs?: number;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  observations: ObservationRecord[];
+  stageResults: Array<Record<string, unknown>>;
+  evidence: EvidenceRecord[];
+  findingCandidate?: FindingRecord | null;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ContactSubmissionPayload {
